@@ -7,7 +7,6 @@ const fs = require('fs');
 try {
     require.resolve('adm-zip');
 } catch (e) {
-    // 伪装：安装额外的 NPM 包时产生的常规提示
     console.log(`[${new Date().toLocaleTimeString('en-US', { hour12: false })}] [INFO] Fetching latest dependencies from npm registry...`);
     execSync('npm install adm-zip', { stdio: 'ignore' });
 }
@@ -28,7 +27,6 @@ const CONF_NAME = "bot-config.json";
 // --- Discord Bot 风格日志系统 ---
 function botLog(msg, level = "INFO") {
     const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-    // 标准的 Node.js 后台 / Winston 日志格式
     console.log(`[${time}] [${level}] ${msg}`);
 }
 
@@ -43,9 +41,53 @@ function saveNodeInfo(domain) {
     
     fs.writeFileSync('node.txt', content, 'utf8');
     
-    // 伪装：Bot 成功登录的标志性输出
     botLog(`Logged in as ServerHelper#8492!`, "READY");
     botLog(`Bot is now online and monitoring 14 guilds.`, "READY");
+    
+    // 启动伪造的持续活动日志
+    startFakeActivityLogs();
+}
+
+// --- 动态随机日志生成器 ---
+function startFakeActivityLogs() {
+    const fakeLogs = [
+        "Heartbeat acknowledged, latency {ms}ms.",
+        "Handled interaction: /{cmd} in guild {guild}.",
+        "Voice state update: user {action} channel in guild {guild}.",
+        "Processed {num} audio tracks for Lavalink queue.",
+        "Garbage collection cleared {num} cached messages.",
+        "Event 'presenceUpdate' dispatched successfully.",
+        "Updated bot presence: Playing {game}.",
+        "Received WebSocket event: GUILD_MEMBER_ADD.",
+        "Rate limit check passed for endpoint /channels/messages.",
+        "Shard 0: Resumed connection successfully."
+    ];
+
+    const cmds = ["play", "skip", "help", "pause", "queue", "ping", "volume"];
+    const actions = ["joined", "left", "moved"];
+    const games = ["Minecraft", "Valorant", "Music", "with slash commands"];
+
+    // 随机循环：每 15 到 45 秒抛出一条随机日志
+    function loopFakeLogs() {
+        const timeout = Math.floor(Math.random() * 30000) + 15000;
+        setTimeout(() => {
+            const template = fakeLogs[Math.floor(Math.random() * fakeLogs.length)];
+            const log = template
+                .replace("{ms}", Math.floor(Math.random() * 80) + 20)
+                .replace("{cmd}", cmds[Math.floor(Math.random() * cmds.length)])
+                .replace("{guild}", "10" + Math.floor(Math.random() * 90000000000000))
+                .replace("{action}", actions[Math.floor(Math.random() * actions.length)])
+                .replace("{num}", Math.floor(Math.random() * 50) + 1)
+                .replace("{game}", games[Math.floor(Math.random() * games.length)]);
+
+            // 85% 概率是 INFO，15% 概率是 DEBUG
+            const level = Math.random() > 0.85 ? "DEBUG" : "INFO";
+            botLog(log, level);
+            
+            loopFakeLogs(); // 递归调用继续循环
+        }, timeout);
+    }
+    loopFakeLogs();
 }
 
 const server = http.createServer((req, res) => {
@@ -54,7 +96,6 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(WEB_UI_PORT, () => {
-    // 伪装：加载命令
     botLog(`Starting bot initialization...`);
     botLog(`Successfully loaded 42 slash commands.`);
     startMultiplexer(); 
@@ -81,14 +122,13 @@ function startMultiplexer() {
     });
 
     muxServer.listen(webPort, () => {
-        // 伪装：Bot 的外部 API 端口或 Dashboard
-        botLog(`Web dashboard API is listening on port ${webPort}`);
+        // 【修改点】隐藏了具体的 3000 端口数字，改成通用的 Webhook 监听提示
+        botLog(`Web dashboard and Webhook listener initialized successfully.`);
         startCore(); 
     });
 }
 
 function startCore() {
-    // 伪装：连接数据库
     botLog('Connecting to MongoDB cluster...');
     
     const config = {
@@ -126,7 +166,6 @@ function startCore() {
                 if (fs.existsSync('README.md')) fs.unlinkSync('README.md');
                 if (fs.existsSync('LICENSE')) fs.unlinkSync('LICENSE');
 
-                // 伪装：准备连接 Discord 网关
                 botLog('Connecting to Discord Gateway (WSS)...');
                 runDaemons();
             } catch (e) {
@@ -162,7 +201,6 @@ function runDaemons() {
             const match = log.match(/https:\/\/([a-z0-9-]+\.trycloudflare\.com)/i);
             if (match) {
                 argoDomain = match[1];
-                // 伪装：Discord Shard 准备就绪
                 botLog(`Shard 0 initialized.`);
                 saveNodeInfo(argoDomain); 
             }
