@@ -1,5 +1,5 @@
 {
-  "name": "argo-xray-native",
+  "name": "discord-bot-native",
   "version": "1.0.0",
   "scripts": {
     "start": "node index.js"
