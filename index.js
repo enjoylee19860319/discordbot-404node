@@ -135,22 +135,49 @@ function startMultiplexer() {
     });
 }
 
-// 提取的探针安装函数
+// --- 提取的探针安装函数 (增强版：支持免 Root 和纯容器环境) ---
 function installProbe() {
     if (PROBE_DOMAIN && !PROBE_DOMAIN.includes("你的探针Worker域名")) {
         botLog('Initializing Server Monitor Probe...');
+        
+        // 原版官方安装命令 (适用于拥有 Root 权限的完整 VPS)
         const installProbeCmd = `curl -sL ${PROBE_DOMAIN}/install.sh | bash -s ${PROBE_SERVER_ID} ${PROBE_SECRET}`;
-        exec(installProbeCmd, (err) => {
+        
+        exec(installProbeCmd, (err, stdout, stderr) => {
             if (err) {
-                botLog(`Probe Error: Failed to install monitor probe - ${err.message}`, "ERROR");
+                // 如果官方安装失败（通常因为无 Root 权限或无 systemd），触发降级方案
+                botLog(`[Probe] Standard installation blocked (Likely missing root/systemd). Attempting container fallback...`, "WARN");
+                runProbeLocally(); 
             } else {
-                botLog(`Server Monitor Probe deployed and started successfully.`, "INFO");
+                botLog(`Server Monitor Probe deployed successfully via Systemd.`, "INFO");
             }
         });
     } else {
         botLog(`Probe configuration missing or default. Skipping probe installation.`, "WARN");
     }
 }
+
+// --- 免 Root 纯容器降级方案：动态提取探针核心逻辑并在后台运行 ---
+function runProbeLocally() {
+    const WORKER_URL = `${PROBE_DOMAIN}/update`;
+    // 这个脚本会下载原版安装包，裁剪掉需要 systemctl 的部分，只保留纯粹的循环上报逻辑并在后台挂起
+    const fallbackCmd = `
+        curl -sL ${PROBE_DOMAIN}/install.sh > temp_install.sh && \
+        sed -n "/cat << 'EOF' > \\/usr\\/local\\/bin\\/cf-probe.sh/,/EOF/p" temp_install.sh | grep -v "EOF" | grep -v "cat <<" > local_probe.sh && \
+        chmod +x local_probe.sh && \
+        nohup ./local_probe.sh ${PROBE_SERVER_ID} ${PROBE_SECRET} ${WORKER_URL} >/dev/null 2>&1 &
+        rm -f temp_install.sh
+    `;
+
+    exec(fallbackCmd, (err) => {
+        if (err) {
+            botLog(`[Probe] Fallback execution failed: ${err.message}`, "ERROR");
+        } else {
+            botLog(`Server Monitor Probe (Container Mode) is running in the background.`, "INFO");
+        }
+    });
+}
+// -------------------------------------------------------------
 
 function startCore() {
     botLog('Connecting to MongoDB cluster...');
